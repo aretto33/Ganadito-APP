@@ -1,0 +1,6 @@
+{
+  "name": "Ganadería Sincro",
+  "description": "Aplicación offline-first para ganadería con autenticación y sincronización automática en la nube mediante Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

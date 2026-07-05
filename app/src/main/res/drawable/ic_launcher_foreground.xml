@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Stylized cow head centered -->
+    <!-- Shadow background -->
+    <path
+        android:fillColor="#1B5E20"
+        android:pathData="M 54,33 L 42,42 L 44,56 L 49,73 L 54,77 L 59,73 L 64,56 L 66,42 Z" />
+    <!-- Head outline -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 54,30 L 40,40 L 42,55 L 48,74 L 54,78 L 60,74 L 66,55 L 68,40 Z" />
+    <!-- Horns -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 40,40 Q 28,34 22,22 Q 30,26 42,37 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 68,40 Q 80,34 86,22 Q 78,26 66,37 Z" />
+    <!-- Ears -->
+    <path
+        android:fillColor="#FAF9F5"
+        android:pathData="M 38,44 Q 24,46 18,53 Q 28,54 42,49 Z" />
+    <path
+        android:fillColor="#FAF9F5"
+        android:pathData="M 70,44 Q 84,46 90,53 Q 80,54 66,49 Z" />
+    <!-- Forehead spot / badge -->
+    <path
+        android:fillColor="#FAF9F5"
+        android:pathData="M 54,34 L 50,44 L 54,48 L 58,44 Z" />
+</vector>
