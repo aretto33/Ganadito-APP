@@ -101,14 +101,14 @@ fun MainAppEntry(
                             Icon(
                                 imageVector = Icons.Default.Pets,
                                 contentDescription = null,
-                                tint = RanchGreenPrimary,
+                                tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
-                                text = "Ganadería Sincro",
+                                text = "Mi Ganadito Control",
                                 fontWeight = FontWeight.Black,
                                 fontSize = 18.sp,
-                                color = RanchDarkSand
+                                color = Color.White
                             )
                         }
                     },
@@ -155,13 +155,15 @@ fun MainAppEntry(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = RanchSoftSand
+                        containerColor = GanaditoDarkBrown,
+                        titleContentColor = Color.White,
+                        actionIconContentColor = Color.White
                     )
                 )
             },
             bottomBar = {
                 NavigationBar(
-                    containerColor = Color.White,
+                    containerColor = GanaditoSurface,
                     tonalElevation = 8.dp,
                     windowInsets = WindowInsets.navigationBars
                 ) {
@@ -171,9 +173,9 @@ fun MainAppEntry(
                         icon = { Icon(Icons.Default.Dashboard, contentDescription = "Panel") },
                         label = { Text("Panel", fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = RanchGreenPrimary,
-                            selectedTextColor = RanchGreenPrimary,
-                            indicatorColor = RanchLightGreen
+                            selectedIconColor = GanaditoPrimaryBrown,
+                            selectedTextColor = GanaditoPrimaryBrown,
+                            indicatorColor = GanaditoBackground
                         ),
                         modifier = Modifier.testTag("nav_dashboard")
                     )
@@ -183,9 +185,9 @@ fun MainAppEntry(
                         icon = { Icon(Icons.Default.Pets, contentDescription = "Ganado") },
                         label = { Text("Ganado", fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = RanchGreenPrimary,
-                            selectedTextColor = RanchGreenPrimary,
-                            indicatorColor = RanchLightGreen
+                            selectedIconColor = GanaditoPrimaryBrown,
+                            selectedTextColor = GanaditoPrimaryBrown,
+                            indicatorColor = GanaditoBackground
                         ),
                         modifier = Modifier.testTag("nav_animals")
                     )
@@ -195,9 +197,9 @@ fun MainAppEntry(
                         icon = { Icon(Icons.Default.Vaccines, contentDescription = "Medicina") },
                         label = { Text("Medicinas", fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = RanchBrown,
-                            selectedTextColor = RanchBrown,
-                            indicatorColor = RanchLightGreen
+                            selectedIconColor = GanaditoPrimaryBrown,
+                            selectedTextColor = GanaditoPrimaryBrown,
+                            indicatorColor = GanaditoBackground
                         ),
                         modifier = Modifier.testTag("nav_medicines")
                     )
@@ -207,9 +209,9 @@ fun MainAppEntry(
                         icon = { Icon(Icons.Default.MedicalServices, contentDescription = "Tratamientos") },
                         label = { Text("Médico", fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = RanchAmber,
-                            selectedTextColor = RanchBrown,
-                            indicatorColor = RanchLightGreen
+                            selectedIconColor = GanaditoPrimaryBrown,
+                            selectedTextColor = GanaditoPrimaryBrown,
+                            indicatorColor = GanaditoBackground
                         ),
                         modifier = Modifier.testTag("nav_treatments")
                     )
@@ -229,9 +231,9 @@ fun MainAppEntry(
                         },
                         label = { Text("Sincro", fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = RanchGreenPrimary,
-                            selectedTextColor = RanchGreenPrimary,
-                            indicatorColor = RanchLightGreen
+                            selectedIconColor = GanaditoPrimaryBrown,
+                            selectedTextColor = GanaditoPrimaryBrown,
+                            indicatorColor = GanaditoBackground
                         ),
                         modifier = Modifier.testTag("nav_sync")
                     )

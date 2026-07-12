@@ -25,6 +25,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.GanaditoBackground
+import com.example.ui.theme.GanaditoDarkBrown
+import com.example.ui.theme.GanaditoPrimaryBrown
 import com.example.ui.theme.RanchBrown
 import com.example.ui.theme.RanchGreenPrimary
 import com.example.ui.theme.RanchGreenSecondary
@@ -52,8 +55,8 @@ fun AuthScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        RanchGreenPrimary.copy(alpha = 0.15f),
-                        RanchSoftSand
+                        GanaditoDarkBrown,
+                        GanaditoBackground
                     )
                 )
             )
@@ -73,28 +76,28 @@ fun AuthScreen(
             Icon(
                 imageVector = Icons.Default.Pets,
                 contentDescription = "Ganadería",
-                tint = RanchGreenPrimary,
+                tint = Color.White,
                 modifier = Modifier
                     .size(72.dp)
-                    .background(RanchGreenSecondary.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                    .background(GanaditoPrimaryBrown.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
                     .padding(16.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Ganadería Sincro",
+                text = "Mi Ganadito Control",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = RanchBrown
+                    color = Color.White
                 ),
                 textAlign = TextAlign.Center
             )
 
             Text(
-                text = "Control ganadero offline-first con sincronización automática",
+                text = "Control ganadero para microproductores",
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    color = RanchBrown.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.9f)
                 ),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
