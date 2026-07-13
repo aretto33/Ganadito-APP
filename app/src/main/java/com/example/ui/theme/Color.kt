@@ -2,19 +2,27 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val RanchGreenPrimary = Color(0xFF2E7D32)
-val RanchGreenSecondary = Color(0xFF4CAF50)
-val RanchBrown = Color(0xFF5D4037)
-val RanchAmber = Color(0xFFFFB300)
+// Ganadito Control Brown Palette
+val GanaditoDarkBrown = Color(0xFF3E2723)
+val GanaditoMediumBrown = Color(0xFF5D4037)
+val GanaditoPrimaryBrown = Color(0xFFAC8E68)
+val GanaditoBackground = Color(0xFFF5EFE6)
+val GanaditoSurface = Color(0xFFFFFFFF)
+val GanaditoSoftCream = Color(0xFFFDFCFB)
 
-val RanchDarkGreen = Color(0xFF1B5E20)
-val RanchLightGreen = Color(0xFFE8F5E9)
-val RanchSoftSand = Color(0xFFFAF9F5)
-val RanchDarkSand = Color(0xFF4E342E)
+// Mapping old colors to new palette to affect hardcoded usages
+val RanchGreenPrimary = GanaditoPrimaryBrown
+val RanchGreenSecondary = GanaditoMediumBrown
+val RanchBrown = GanaditoDarkBrown
+val RanchAmber = Color(0xFFD7CCC8) // Lighter brown/beige for highlights
 
-val RanchGray = Color(0xFF757575)
-val RanchLightGray = Color(0xFFF1F1F1)
-val RanchCardBg = Color(0xFFFFFFFF)
-val RanchError = Color(0xFFD32F2F)
-val RanchSyncBlue = Color(0xFF1976D2)
+val RanchDarkGreen = GanaditoDarkBrown
+val RanchLightGreen = Color(0xFFEFEBE9)
+val RanchSoftSand = GanaditoBackground
+val RanchDarkSand = GanaditoDarkBrown
 
+val RanchGray = Color(0xFF9E9E9E)
+val RanchLightGray = Color(0xFFEEEEEE)
+val RanchCardBg = GanaditoSurface
+val RanchError = Color(0xFFB71C1C)
+val RanchSyncBlue = Color(0xFF795548) // Using brown instead of blue for sync
