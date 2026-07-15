@@ -1,21 +1,40 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+  <h1>🐮 miGanadito_Control</h1>
+  <p><strong>Gestión ganadera inteligente y simplificada • Demo v1</strong></p>
+  <p>Una herramienta diseñada para facilitar el control de ganado y el cumplimiento de las normativas de SINIIGA.</p>
+  <hr />
 </div>
 
-# Run and deploy your AI Studio app
+## ✨ Características de la Demo (v1)
 
-This contains everything you need to run your app locally.
+Esta primera versión demo está enfocada en asentar las bases de la gestión digital del rancho:
 
-View your app in AI Studio: https://ai.studio/apps/dfc3696c-78c8-4e0b-ac50-69626f1a0ed3
-
-## Run Locally
-
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+*   **📋 Registro de Ganado:** Control individual de tus animales con datos esenciales.
+*   **📱 Interfaz Intuitiva:** Diseñada para que sea fácil de usar incluso bajo el sol del campo.
 
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+---
+
+## 🛠️ Cómo ejecutar la Demo en tu PC
+
+Para correr este proyecto de Android de manera local, sigue estos pasos:
+
+### Prerrequisitos
+
+*   **Android Studio** (Koala o más reciente) instalado.
+*   Una llave de API de **Google AI Studio** (Gemini API Key).
+
+### Instrucciones de Instalación
+
+1. **Clona o descarga** este repositorio en tu computadora.
+2. Abre **Android Studio**, selecciona **Open** y elige la carpeta de este proyecto.
+3. Espera a que Android Studio descargue las dependencias y sincronice el proyecto con Gradle.
+
+### Configuración del Entorno
+
+Para que la inteligencia artificial funcione, necesitas configurar tu API Key de Gemini:
+
+1. En la raíz del proyecto, crea un archivo llamado `.env` (puedes guiarte de `.env.example`).
+2. Agrega tu clave de la siguiente manera:
+   ```env
+   GEMINI_API_KEY=tu_clave_secreta_aqui
