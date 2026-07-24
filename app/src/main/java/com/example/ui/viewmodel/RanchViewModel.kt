@@ -1,7 +1,6 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
@@ -13,9 +12,11 @@ import com.example.data.remote.SupabaseHttpClient
 import com.example.data.repository.RanchRepository
 import com.example.data.repository.SyncState
 import com.example.utils.NetworkMonitor
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RanchViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application)
@@ -31,14 +32,15 @@ class RanchViewModel(application: Application) : AndroidViewModel(application) {
 
     private val networkMonitor = NetworkMonitor(application)
 
-    // --- ESTADOS DE CONFIGURACIÓN Y RED ---
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
-    val supabaseUrl: StateFlow<String> = configManager.supabaseUrl
-    val supabaseAnonKey: StateFlow<String> = configManager.supabaseAnonKey
     val userId: StateFlow<String> = configManager.userId
     val userEmail: StateFlow<String> = configManager.userEmail
+    val pkProductor: StateFlow<Int> = configManager.pkProductor
+    val idUsuario: StateFlow<Int> = configManager.idUsuario
+    val supabaseUrl: StateFlow<String> = configManager.supabaseUrl
+    val supabaseAnonKey: StateFlow<String> = configManager.supabaseAnonKey
     val isOfflineOnly: StateFlow<Boolean> = configManager.isOfflineOnly
     val syncState: StateFlow<SyncState> = repository.syncState
 
@@ -46,34 +48,21 @@ class RanchViewModel(application: Application) : AndroidViewModel(application) {
         .map { it.isNotEmpty() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), configManager.isLoggedIn())
 
-    // --- OPERACIONES DE FLUJO REACTIVO ---
-    
-    val animals: StateFlow<List<AnimalEntity>> = userId
-        .flatMapLatest { uid ->
-            if (uid.isEmpty()) flowOf(emptyList())
-            else repository.observeAnimals(uid)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val animals: StateFlow<List<AnimalEntity>> = userId.flatMapLatest { uid ->
+        if (uid.isEmpty()) flowOf(emptyList()) else repository.observeAnimals(uid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val medicines: StateFlow<List<MedicineEntity>> = userId
-        .flatMapLatest { uid ->
-            if (uid.isEmpty()) flowOf(emptyList())
-            else repository.observeMedicines(uid)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val medicines: StateFlow<List<MedicineEntity>> = userId.flatMapLatest { uid ->
+        if (uid.isEmpty()) flowOf(emptyList()) else repository.observeMedicines(uid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val treatments: StateFlow<List<TreatmentEntity>> = userId
-        .flatMapLatest { uid ->
-            if (uid.isEmpty()) flowOf(emptyList())
-            else repository.observeTreatments(uid)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val treatments: StateFlow<List<TreatmentEntity>> = userId.flatMapLatest { uid ->
+        if (uid.isEmpty()) flowOf(emptyList()) else repository.observeTreatments(uid)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- CONTADORES PENDIENTES DE SYNC ---
     private val _unsyncedCount = MutableStateFlow(0)
     val unsyncedCount: StateFlow<Int> = _unsyncedCount.asStateFlow()
 
-    // --- ESTADOS DE UI ---
     private val _authStatus = MutableStateFlow<String?>(null)
     val authStatus: StateFlow<String?> = _authStatus.asStateFlow()
 
@@ -81,202 +70,110 @@ class RanchViewModel(application: Application) : AndroidViewModel(application) {
     val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
 
     init {
-        // Observar conexión para Sincronización Automática
         viewModelScope.launch {
-            isOnline.collect { online ->
-                Log.d("RanchViewModel", "Connection change: online=$online")
-                if (online && isLoggedIn.value && !isOfflineOnly.value && configManager.isConfigured()) {
-                    Log.d("RanchViewModel", "Online connection detected! Triggering automatic sync...")
-                    repository.syncAll()
-                }
-                updateUnsyncedCount()
-            }
-        }
-
-        // Observar cambios en las tablas para actualizar el contador de cambios locales pendientes
-        viewModelScope.launch {
-            combine(animals, medicines, treatments) { a, m, t ->
-                updateUnsyncedCount()
-            }.collect()
+            combine(animals, medicines, treatments) { _, _, _ -> }.collect { updateUnsyncedCount() }
         }
     }
 
     private suspend fun updateUnsyncedCount() {
-        val pendingAnimals = database.animalDao().getUnsynced().size
-        val pendingMeds = database.medicineDao().getUnsynced().size
-        val pendingTreats = database.treatmentDao().getUnsynced().size
-        _unsyncedCount.value = pendingAnimals + pendingMeds + pendingTreats
+        val uid = userId.value
+        if (uid.isEmpty()) { _unsyncedCount.value = 0; return }
+        val pA = database.animalDao().getUnsynced(uid).size
+        val pM = database.medicineDao().getUnsynced(uid).size
+        val pT = database.treatmentDao().getUnsynced(uid).size
+        _unsyncedCount.value = pA + pM + pT
     }
-
-    // --- AUTENTICACIÓN ---
 
     fun login(email: String, pass: String) {
-        if (email.isBlank() || pass.isBlank()) {
-            _authStatus.value = "Por favor, completa todos los campos."
-            return
+        val cleanEmail = email.trim()
+        if (cleanEmail.isBlank() || pass.isBlank()) { 
+            _authStatus.value = "Escribe correo y contraseña."
+            return 
         }
         _isAuthLoading.value = true
         _authStatus.value = null
+        
         viewModelScope.launch {
-            if (isOnline.value && !isOfflineOnly.value && configManager.isConfigured()) {
-                val response = supabaseClient.signIn(email, pass)
-                _isAuthLoading.value = false
+            try {
+                val response = supabaseClient.signIn(cleanEmail, pass)
                 if (response.isSuccess) {
+                    // ENTRADA INMEDIATA: Guardamos lo básico para que la app cambie de pantalla
                     configManager.saveSession(response.userId, response.email, response.token)
-                    _authStatus.value = "Sesión iniciada con éxito (Nube)"
-                    // Descargar datos remotos
-                    repository.downloadRemoteData()
+                    _isAuthLoading.value = false
+                    _authStatus.value = "Sesión iniciada."
+                    
+                    // El resto de los datos (IDs de DB) se buscan en segundo plano
+                    launch {
+                        val ids = supabaseClient.getUserDatabaseIds(response.userId)
+                        configManager.saveSession(response.userId, response.email, response.token, ids.first, ids.second)
+                        repository.downloadRemoteData(ids.second)
+                        updateUnsyncedCount()
+                    }
                 } else {
-                    _authStatus.value = response.errorMessage
+                    _isAuthLoading.value = false
+                    _authStatus.value = "Error: ${response.errorMessage ?: "Credenciales inválidas"}"
                 }
-            } else {
-                // Modo Offline: Permitir login con cualquier credencial si ya había una guardada localmente,
-                // o iniciar sesión de demostración offline para que puedan probar la app sin internet.
+            } catch (e: Exception) {
                 _isAuthLoading.value = false
-                val savedUid = configManager.userId.value
-                val savedEmail = configManager.userEmail.value
-                if (savedUid.isNotEmpty() && email == savedEmail) {
-                    _authStatus.value = "Sesión iniciada (Modo Offline)"
-                } else {
-                    // Generar sesión de demostración local
-                    val demoUid = "demo-user-offline-uuid-123456"
-                    configManager.saveSession(demoUid, email, "demo-token")
-                    _authStatus.value = "Iniciada Sesión de Demostración Offline (Los datos se guardarán localmente)"
-                }
+                _authStatus.value = "Fallo técnico: ${e.localizedMessage}"
             }
-            updateUnsyncedCount()
         }
     }
 
-    fun register(email: String, pass: String) {
-        if (email.isBlank() || pass.isBlank()) {
-            _authStatus.value = "Por favor, completa todos los campos."
-            return
-        }
+    fun register(email: String, pass: String, metadata: Map<String, Any> = emptyMap()) {
+        val cleanEmail = email.trim()
+        if (cleanEmail.isBlank() || pass.isBlank()) { _authStatus.value = "Completa los campos."; return }
         _isAuthLoading.value = true
         _authStatus.value = null
+        
         viewModelScope.launch {
-            if (isOnline.value && !isOfflineOnly.value && configManager.isConfigured()) {
-                val response = supabaseClient.signUp(email, pass)
-                _isAuthLoading.value = false
+            try {
+                val response = supabaseClient.signUp(cleanEmail, pass, metadata)
                 if (response.isSuccess) {
-                    configManager.saveSession(response.userId, response.email, response.token)
-                    _authStatus.value = "Usuario registrado e iniciado con éxito (Nube)"
+                    val res = supabaseClient.createUserProfile(response.userId, response.email, metadata, response.token)
+                    configManager.saveSession(response.userId, response.email, response.token, res.idUsuario, res.pkProductor)
+                    _isAuthLoading.value = false
+                    _authStatus.value = "Registro exitoso. ¡Bienvenido!"
                 } else {
-                    _authStatus.value = response.errorMessage
+                    _isAuthLoading.value = false
+                    _authStatus.value = "Error: ${response.errorMessage}"
                 }
-            } else {
+            } catch (e: Exception) {
                 _isAuthLoading.value = false
-                _authStatus.value = "Requiere conexión a internet para registrar un nuevo usuario en la nube."
+                _authStatus.value = "Fallo registro: ${e.localizedMessage}"
             }
         }
     }
 
     fun logout() {
-        viewModelScope.launch {
-            configManager.clearSession()
-            _authStatus.value = "Sesión cerrada"
-        }
-    }
-
-    // --- CONFIGURACIÓN DE SUPABASE ---
-
-    fun saveSupabaseConfig(url: String, key: String) {
-        configManager.updateConfig(url, key)
-        viewModelScope.launch {
-            if (isOnline.value && isLoggedIn.value && !isOfflineOnly.value) {
-                repository.syncAll()
-            }
-        }
-    }
-
-    fun toggleOfflineOnly(offline: Boolean) {
-        configManager.setOfflineOnly(offline)
-        if (!offline && isOnline.value && isLoggedIn.value) {
-            viewModelScope.launch {
-                repository.syncAll()
-            }
-        }
+        viewModelScope.launch { configManager.clearSession(); _authStatus.value = "Sesión cerrada" }
     }
 
     fun forceSync() {
-        viewModelScope.launch {
-            repository.syncAll()
+        viewModelScope.launch { repository.syncAll(userId.value, pkProductor.value); updateUnsyncedCount() }
+    }
+
+    fun addAnimal(n: String, t: String, ty: String, b: String, d: String, w: Double, g: String) {
+        viewModelScope.launch { 
+            repository.addAnimal(n, t, ty, b, d, w, g, userId.value)
             updateUnsyncedCount()
+            repository.syncAll(userId.value, pkProductor.value)
         }
     }
-
-    // --- GUARDAR ENTIDADES ---
-
-    fun addAnimal(name: String, tagNumber: String, type: String, breed: String, birthDate: String, weight: Double, gender: String) {
-        viewModelScope.launch {
-            repository.addAnimal(name, tagNumber, type, breed, birthDate, weight, gender, userId.value)
+    
+    fun updateAnimal(a: AnimalEntity) { viewModelScope.launch { repository.updateAnimal(a); updateUnsyncedCount(); repository.syncAll(userId.value, pkProductor.value) } }
+    fun deleteAnimal(id: String) { viewModelScope.launch { repository.deleteAnimal(id); updateUnsyncedCount(); repository.syncAll(userId.value, pkProductor.value) } }
+    fun addMedicine(n: String, i: String, s: Double, u: String) { viewModelScope.launch { repository.addMedicine(n, i, s, u, userId.value); updateUnsyncedCount(); repository.syncAll(userId.value, pkProductor.value) } }
+    fun updateMedicine(m: MedicineEntity) { viewModelScope.launch { repository.updateMedicine(m); updateUnsyncedCount(); repository.syncAll(userId.value, pkProductor.value) } }
+    fun deleteMedicine(id: String) { viewModelScope.launch { repository.deleteMedicine(id); updateUnsyncedCount(); repository.syncAll(userId.value, pkProductor.value) } }
+    fun addTreatment(aI: String, aN: String, mI: String, mN: String, d: String, ds: Double, notes: String) {
+        viewModelScope.launch { 
+            repository.addTreatment(aI, aN, mI, mN, d, ds, notes, userId.value)
             updateUnsyncedCount()
-            triggerSyncIfNeeded()
+            repository.syncAll(userId.value, pkProductor.value)
         }
     }
-
-    fun updateAnimal(animal: AnimalEntity) {
-        viewModelScope.launch {
-            repository.updateAnimal(animal)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    fun deleteAnimal(id: String) {
-        viewModelScope.launch {
-            repository.deleteAnimal(id)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    fun addMedicine(name: String, activeIngredient: String, stock: Double, dosageUnit: String) {
-        viewModelScope.launch {
-            repository.addMedicine(name, activeIngredient, stock, dosageUnit, userId.value)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    fun updateMedicine(medicine: MedicineEntity) {
-        viewModelScope.launch {
-            repository.updateMedicine(medicine)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    fun deleteMedicine(id: String) {
-        viewModelScope.launch {
-            repository.deleteMedicine(id)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    fun addTreatment(animalId: String, animalName: String, medicineId: String, medicineName: String, date: String, dosage: Double, notes: String) {
-        viewModelScope.launch {
-            repository.addTreatment(animalId, animalName, medicineId, medicineName, date, dosage, notes, userId.value)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    fun deleteTreatment(id: String) {
-        viewModelScope.launch {
-            repository.deleteTreatment(id)
-            updateUnsyncedCount()
-            triggerSyncIfNeeded()
-        }
-    }
-
-    private fun triggerSyncIfNeeded() {
-        if (isOnline.value && !isOfflineOnly.value && configManager.isConfigured() && isLoggedIn.value) {
-            viewModelScope.launch {
-                repository.syncAll()
-            }
-        }
-    }
+    fun deleteTreatment(id: String) { viewModelScope.launch { repository.deleteTreatment(id); updateUnsyncedCount(); repository.syncAll(userId.value, pkProductor.value) } }
+    fun saveSupabaseConfig(u: String, k: String) { /* Hardcoded */ }
+    fun toggleOfflineOnly(o: Boolean) { /* Hardcoded */ }
 }

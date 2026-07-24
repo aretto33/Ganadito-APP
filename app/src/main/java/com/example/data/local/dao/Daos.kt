@@ -27,8 +27,8 @@ interface AnimalDao {
     @Query("DELETE FROM animales WHERE id = :id")
     suspend fun deleteLocally(id: String)
 
-    @Query("SELECT * FROM animales WHERE syncStatus != 'SYNCED'")
-    suspend fun getUnsynced(): List<AnimalEntity>
+    @Query("SELECT * FROM animales WHERE syncStatus != 'SYNCED' AND userId = :userId")
+    suspend fun getUnsynced(userId: String): List<AnimalEntity>
 }
 
 @Dao
@@ -51,8 +51,8 @@ interface MedicineDao {
     @Query("DELETE FROM medicamentos WHERE id = :id")
     suspend fun deleteLocally(id: String)
 
-    @Query("SELECT * FROM medicamentos WHERE syncStatus != 'SYNCED'")
-    suspend fun getUnsynced(): List<MedicineEntity>
+    @Query("SELECT * FROM medicamentos WHERE syncStatus != 'SYNCED' AND userId = :userId")
+    suspend fun getUnsynced(userId: String): List<MedicineEntity>
 }
 
 @Dao
@@ -75,6 +75,6 @@ interface TreatmentDao {
     @Query("DELETE FROM tratamientos WHERE id = :id")
     suspend fun deleteLocally(id: String)
 
-    @Query("SELECT * FROM tratamientos WHERE syncStatus != 'SYNCED'")
-    suspend fun getUnsynced(): List<TreatmentEntity>
+    @Query("SELECT * FROM tratamientos WHERE syncStatus != 'SYNCED' AND userId = :userId")
+    suspend fun getUnsynced(userId: String): List<TreatmentEntity>
 }

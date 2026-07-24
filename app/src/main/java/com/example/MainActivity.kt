@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Settings
@@ -36,8 +35,12 @@ import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.MedicinesScreen
 import com.example.ui.screens.SyncScreen
 import com.example.ui.screens.TreatmentsScreen
+import com.example.ui.screens.WelcomeScreen
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.RanchViewModel
+
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,20 +77,27 @@ fun MainAppEntry(
     val isAuthLoading by viewModel.isAuthLoading.collectAsState()
 
     var currentTab by remember { mutableStateOf("dashboard") }
+    var authSubScreen by remember { mutableStateOf("welcome") } // welcome, login, register
 
     if (!isLoggedIn) {
-        AuthScreen(
-            onLoginSuccess = { /* Manejado por reactividad del StateFlow */ },
-            isOnline = isOnline,
-            isLoading = isAuthLoading,
-            authStatus = authStatus,
-            onLoginClick = { email, pass -> viewModel.login(email, pass) },
-            onRegisterClick = { email, pass -> viewModel.register(email, pass) },
-            onConfigureClick = { currentTab = "sync"; viewModel.login("", "") // forces a trigger / placeholder
-                // we set loggedIn to true artificially as a demo if they want to configure first
-                viewModel.login("configurador@ganadera.com", "config123")
+        when (authSubScreen) {
+            "welcome" -> {
+                WelcomeScreen(
+                    onLoginClick = { authSubScreen = "login" },
+                    onRegisterClick = { authSubScreen = "register" }
+                )
             }
-        )
+            else -> {
+                AuthScreen(
+                    isLoading = isAuthLoading,
+                    authStatus = authStatus,
+                    initialIsSignUp = authSubScreen == "register",
+                    onLoginClick = { email, pass -> viewModel.login(email, pass) },
+                    onRegisterClick = { email, pass, metadata -> viewModel.register(email, pass, metadata) },
+                    onBack = { authSubScreen = "welcome" }
+                )
+            }
+        }
     } else {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -98,11 +108,13 @@ fun MainAppEntry(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Pets,
+                            Image(
+                                painter = painterResource(id = R.drawable.logo_ganadito),
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
                             )
                             Text(
                                 text = "Mi Ganadito Control",

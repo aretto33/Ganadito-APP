@@ -31,38 +31,13 @@ class RanchRepository(
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
-    // --- OBSERVADORES REACTIVOS ---
-
     fun observeAnimals(userId: String): Flow<List<AnimalEntity>> = animalDao.observeAll(userId)
     fun observeMedicines(userId: String): Flow<List<MedicineEntity>> = medicineDao.observeAll(userId)
     fun observeTreatments(userId: String): Flow<List<TreatmentEntity>> = treatmentDao.observeAll(userId)
 
-    // --- ACCIONES - ANIMALES ---
-
-    suspend fun addAnimal(
-        name: String,
-        tagNumber: String,
-        type: String,
-        breed: String,
-        birthDate: String,
-        weight: Double,
-        gender: String,
-        userId: String
-    ) {
-        val animal = AnimalEntity(
-            id = UUID.randomUUID().toString(),
-            name = name,
-            tagNumber = tagNumber,
-            type = type,
-            breed = breed,
-            birthDate = birthDate,
-            weight = weight,
-            gender = gender,
-            userId = userId,
-            syncStatus = SyncStatus.PENDING_INSERT
-        )
+    suspend fun addAnimal(n: String, t: String, ty: String, b: String, d: String, w: Double, g: String, userId: String) {
+        val animal = AnimalEntity(UUID.randomUUID().toString(), n, t, ty, b, d, w, g, userId, SyncStatus.PENDING_INSERT)
         animalDao.insert(animal)
-        Log.d("RanchRepository", "Animal added locally: ${animal.id}")
     }
 
     suspend fun updateAnimal(animal: AnimalEntity) {
@@ -75,33 +50,11 @@ class RanchRepository(
 
     suspend fun deleteAnimal(id: String) {
         val local = animalDao.getById(id) ?: return
-        if (local.syncStatus == SyncStatus.PENDING_INSERT) {
-            // Nunca se subió, eliminar directamente
-            animalDao.deleteLocally(id)
-        } else {
-            // Marcar para eliminación remota posterior
-            animalDao.markForDeletion(id)
-        }
+        if (local.syncStatus == SyncStatus.PENDING_INSERT) animalDao.deleteLocally(id) else animalDao.markForDeletion(id)
     }
 
-    // --- ACCIONES - MEDICAMENTOS ---
-
-    suspend fun addMedicine(
-        name: String,
-        activeIngredient: String,
-        stock: Double,
-        dosageUnit: String,
-        userId: String
-    ) {
-        val medicine = MedicineEntity(
-            id = UUID.randomUUID().toString(),
-            name = name,
-            activeIngredient = activeIngredient,
-            stock = stock,
-            dosageUnit = dosageUnit,
-            userId = userId,
-            syncStatus = SyncStatus.PENDING_INSERT
-        )
+    suspend fun addMedicine(n: String, i: String, s: Double, u: String, userId: String) {
+        val medicine = MedicineEntity(UUID.randomUUID().toString(), n, i, s, u, userId, SyncStatus.PENDING_INSERT)
         medicineDao.insert(medicine)
     }
 
@@ -115,174 +68,80 @@ class RanchRepository(
 
     suspend fun deleteMedicine(id: String) {
         val local = medicineDao.getById(id) ?: return
-        if (local.syncStatus == SyncStatus.PENDING_INSERT) {
-            medicineDao.deleteLocally(id)
-        } else {
-            medicineDao.markForDeletion(id)
-        }
+        if (local.syncStatus == SyncStatus.PENDING_INSERT) medicineDao.deleteLocally(id) else medicineDao.markForDeletion(id)
     }
 
-    // --- ACCIONES - TRATAMIENTOS ---
-
-    suspend fun addTreatment(
-        animalId: String,
-        animalName: String,
-        medicineId: String,
-        medicineName: String,
-        date: String,
-        dosage: Double,
-        notes: String,
-        userId: String
-    ) {
-        // 1. Descontar stock del medicamento localmente
-        val localMedicine = medicineDao.getById(medicineId)
+    suspend fun addTreatment(aI: String, aN: String, mI: String, mN: String, d: String, ds: Double, notes: String, userId: String) {
+        val localMedicine = medicineDao.getById(mI)
         if (localMedicine != null) {
-            val newStock = (localMedicine.stock - dosage).coerceAtLeast(0.0)
             val updatedMedicine = localMedicine.copy(
-                stock = newStock,
+                stock = (localMedicine.stock - ds).coerceAtLeast(0.0),
                 syncStatus = if (localMedicine.syncStatus == SyncStatus.PENDING_INSERT) SyncStatus.PENDING_INSERT else SyncStatus.PENDING_UPDATE,
                 lastUpdated = System.currentTimeMillis()
             )
             medicineDao.update(updatedMedicine)
         }
-
-        // 2. Registrar el tratamiento
-        val treatment = TreatmentEntity(
-            id = UUID.randomUUID().toString(),
-            animalId = animalId,
-            animalName = animalName,
-            medicineId = medicineId,
-            medicineName = medicineName,
-            date = date,
-            dosage = dosage,
-            notes = notes,
-            userId = userId,
-            syncStatus = SyncStatus.PENDING_INSERT
-        )
+        val treatment = TreatmentEntity(UUID.randomUUID().toString(), aI, aN, mI, mN, d, ds, notes, userId, SyncStatus.PENDING_INSERT)
         treatmentDao.insert(treatment)
     }
 
     suspend fun deleteTreatment(id: String) {
         val local = treatmentDao.getById(id) ?: return
-        if (local.syncStatus == SyncStatus.PENDING_INSERT) {
-            treatmentDao.deleteLocally(id)
-        } else {
-            treatmentDao.markForDeletion(id)
+        val localMedicine = medicineDao.getById(local.medicineId)
+        if (localMedicine != null) {
+            val updatedMedicine = localMedicine.copy(
+                stock = localMedicine.stock + local.dosage,
+                syncStatus = if (localMedicine.syncStatus == SyncStatus.PENDING_INSERT) SyncStatus.PENDING_INSERT else SyncStatus.PENDING_UPDATE,
+                lastUpdated = System.currentTimeMillis()
+            )
+            medicineDao.update(updatedMedicine)
         }
+        if (local.syncStatus == SyncStatus.PENDING_INSERT) treatmentDao.deleteLocally(id) else treatmentDao.markForDeletion(id)
     }
 
-    // --- ENGINE DE SINCRONIZACIÓN AUTOMÁTICA ---
-
-    suspend fun syncAll(): Boolean {
+    suspend fun syncAll(userId: String, pkProductor: Int): Boolean {
         if (_syncState.value == SyncState.Syncing) return false
         _syncState.value = SyncState.Syncing
-        Log.d("RanchRepository", "Sync started...")
-
         try {
-            // Verificar conexión de red primero
-            if (!supabaseClient.testConnection()) {
-                _syncState.value = SyncState.Error("No se puede establecer conexión con Supabase.")
-                return false
-            }
-
+            if (!supabaseClient.testConnection()) { _syncState.value = SyncState.Error("Sin conexión"); return false }
+            
             var success = true
-
-            // 1. Sincronizar Animales
-            val unsyncedAnimals = animalDao.getUnsynced()
-            Log.d("RanchRepository", "Unsynced animals found: ${unsyncedAnimals.size}")
-            for (animal in unsyncedAnimals) {
-                if (animal.syncStatus == SyncStatus.PENDING_DELETE) {
-                    if (supabaseClient.deleteAnimal(animal.id)) {
-                        animalDao.deleteLocally(animal.id)
-                    } else {
-                        success = false
-                    }
+            // Sync Animales
+            animalDao.getUnsynced(userId).forEach { 
+                if (it.syncStatus == SyncStatus.PENDING_DELETE) {
+                    if (supabaseClient.deleteAnimal(it.id)) animalDao.deleteLocally(it.id) else success = false
                 } else {
-                    if (supabaseClient.pushAnimal(animal)) {
-                        animalDao.insert(animal.copy(syncStatus = SyncStatus.SYNCED))
-                    } else {
-                        success = false
-                    }
+                    if (supabaseClient.pushAnimal(it, pkProductor)) animalDao.insert(it.copy(syncStatus = SyncStatus.SYNCED)) else success = false
+                }
+            }
+            // Sync Medicamentos
+            medicineDao.getUnsynced(userId).forEach { 
+                if (it.syncStatus == SyncStatus.PENDING_DELETE) {
+                    if (supabaseClient.deleteMedicine(it.id)) medicineDao.deleteLocally(it.id) else success = false
+                } else {
+                    if (supabaseClient.pushMedicine(it)) medicineDao.insert(it.copy(syncStatus = SyncStatus.SYNCED)) else success = false
+                }
+            }
+            // Sync Tratamientos
+            treatmentDao.getUnsynced(userId).forEach { 
+                if (it.syncStatus == SyncStatus.PENDING_DELETE) {
+                    if (supabaseClient.deleteTreatment(it.id)) treatmentDao.deleteLocally(it.id) else success = false
+                } else {
+                    if (supabaseClient.pushTreatment(it)) treatmentDao.insert(it.copy(syncStatus = SyncStatus.SYNCED)) else success = false
                 }
             }
 
-            // 2. Sincronizar Medicamentos
-            val unsyncedMedicines = medicineDao.getUnsynced()
-            Log.d("RanchRepository", "Unsynced medicines found: ${unsyncedMedicines.size}")
-            for (medicine in unsyncedMedicines) {
-                if (medicine.syncStatus == SyncStatus.PENDING_DELETE) {
-                    if (supabaseClient.deleteMedicine(medicine.id)) {
-                        medicineDao.deleteLocally(medicine.id)
-                    } else {
-                        success = false
-                    }
-                } else {
-                    if (supabaseClient.pushMedicine(medicine)) {
-                        medicineDao.insert(medicine.copy(syncStatus = SyncStatus.SYNCED))
-                    } else {
-                        success = false
-                    }
-                }
-            }
-
-            // 3. Sincronizar Tratamientos
-            val unsyncedTreatments = treatmentDao.getUnsynced()
-            Log.d("RanchRepository", "Unsynced treatments found: ${unsyncedTreatments.size}")
-            for (treatment in unsyncedTreatments) {
-                if (treatment.syncStatus == SyncStatus.PENDING_DELETE) {
-                    if (supabaseClient.deleteTreatment(treatment.id)) {
-                        treatmentDao.deleteLocally(treatment.id)
-                    } else {
-                        success = false
-                    }
-                } else {
-                    if (supabaseClient.pushTreatment(treatment)) {
-                        treatmentDao.insert(treatment.copy(syncStatus = SyncStatus.SYNCED))
-                    } else {
-                        success = false
-                    }
-                }
-            }
-
-            if (success) {
-                _syncState.value = SyncState.Success
-                Log.d("RanchRepository", "Sync successfully completed!")
-                return true
-            } else {
-                _syncState.value = SyncState.Error("Algunos datos no pudieron sincronizarse.")
-                return false
-            }
-
-        } catch (e: Exception) {
-            Log.e("RanchRepository", "Sync failed with exception", e)
-            _syncState.value = SyncState.Error("Error en sincronización: ${e.localizedMessage}")
-            return false
-        }
+            if (success) { _syncState.value = SyncState.Success; return true }
+            else { _syncState.value = SyncState.Error("Algunos fallaron"); return false }
+        } catch (e: Exception) { _syncState.value = SyncState.Error(e.localizedMessage); return false }
     }
 
-    // --- ACCIÓN AL INICIAR SESIÓN: TRAER TODO DE LA NUBE ---
-
-    suspend fun downloadRemoteData() {
+    suspend fun downloadRemoteData(pkProductor: Int) {
         _syncState.value = SyncState.Syncing
         try {
-            val animals = supabaseClient.fetchRemoteAnimals()
-            for (animal in animals) {
-                animalDao.insert(animal)
-            }
-
-            val medicines = supabaseClient.fetchRemoteMedicines()
-            for (med in medicines) {
-                medicineDao.insert(med)
-            }
-
-            val treatments = supabaseClient.fetchRemoteTreatments()
-            for (tr in treatments) {
-                treatmentDao.insert(tr)
-            }
+            supabaseClient.fetchRemoteAnimals(pkProductor).forEach { animalDao.insert(it) }
+            supabaseClient.fetchRemoteMedicines().forEach { medicineDao.insert(it) }
             _syncState.value = SyncState.Success
-        } catch (e: Exception) {
-            Log.e("RanchRepository", "Error fetching cloud data", e)
-            _syncState.value = SyncState.Error("No se pudo descargar datos de la nube: ${e.localizedMessage}")
-        }
+        } catch (e: Exception) { _syncState.value = SyncState.Error(e.localizedMessage) }
     }
 }

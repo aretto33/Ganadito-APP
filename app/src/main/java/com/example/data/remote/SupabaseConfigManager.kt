@@ -9,10 +9,13 @@ import kotlinx.coroutines.flow.asStateFlow
 class SupabaseConfigManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("supabase_config", Context.MODE_PRIVATE)
 
-    private val _supabaseUrl = MutableStateFlow(prefs.getString("supabase_url", "https://tu-proyecto.supabase.co") ?: "")
+    private val realUrl = "https://ttgxzwszpmooaatuvdob.supabase.co"
+    private val realKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0Z3h6d3N6cG1vb2FhdHV2ZG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDI0NDgsImV4cCI6MjA5MjYxODQ0OH0.HcjSjEjRs_xGxMSr3JFcAmydF6qv080QydnUxE4yHIg"
+
+    private val _supabaseUrl = MutableStateFlow(realUrl)
     val supabaseUrl: StateFlow<String> = _supabaseUrl.asStateFlow()
 
-    private val _supabaseAnonKey = MutableStateFlow(prefs.getString("supabase_anon_key", "") ?: "")
+    private val _supabaseAnonKey = MutableStateFlow(realKey)
     val supabaseAnonKey: StateFlow<String> = _supabaseAnonKey.asStateFlow()
 
     private val _userId = MutableStateFlow(prefs.getString("user_id", "") ?: "")
@@ -24,55 +27,43 @@ class SupabaseConfigManager(context: Context) {
     private val _accessToken = MutableStateFlow(prefs.getString("access_token", "") ?: "")
     val accessToken: StateFlow<String> = _accessToken.asStateFlow()
 
-    private val _isOfflineOnly = MutableStateFlow(prefs.getBoolean("offline_only", false))
+    // --- Identificadores de Base de Datos (Integers según esquema) ---
+    private val _idUsuario = MutableStateFlow(prefs.getInt("id_usuario_db", -1))
+    val idUsuario: StateFlow<Int> = _idUsuario.asStateFlow()
+
+    private val _pkProductor = MutableStateFlow(prefs.getInt("pk_productor_db", -1))
+    val pkProductor: StateFlow<Int> = _pkProductor.asStateFlow()
+
+    private val _isOfflineOnly = MutableStateFlow(false)
     val isOfflineOnly: StateFlow<Boolean> = _isOfflineOnly.asStateFlow()
 
-    fun updateConfig(url: String, anonKey: String) {
-        prefs.edit().apply {
-            putString("supabase_url", url)
-            putString("supabase_anon_key", anonKey)
-            apply()
-        }
-        _supabaseUrl.value = url
-        _supabaseAnonKey.value = anonKey
-    }
-
-    fun saveSession(uid: String, email: String, token: String) {
+    fun saveSession(uid: String, email: String, token: String, dbId: Int = -1, prodId: Int = -1) {
         prefs.edit().apply {
             putString("user_id", uid)
             putString("user_email", email)
             putString("access_token", token)
+            putInt("id_usuario_db", dbId)
+            putInt("pk_productor_db", prodId)
             apply()
         }
         _userId.value = uid
         _userEmail.value = email
         _accessToken.value = token
+        _idUsuario.value = dbId
+        _pkProductor.value = prodId
     }
 
     fun clearSession() {
-        prefs.edit().apply {
-            remove("user_id")
-            remove("user_email")
-            remove("access_token")
-            apply()
-        }
+        prefs.edit().clear().apply()
         _userId.value = ""
         _userEmail.value = ""
         _accessToken.value = ""
+        _idUsuario.value = -1
+        _pkProductor.value = -1
     }
 
-    fun setOfflineOnly(offline: Boolean) {
-        prefs.edit().putBoolean("offline_only", offline).apply()
-        _isOfflineOnly.value = offline
-    }
-
-    fun isConfigured(): Boolean {
-        val url = _supabaseUrl.value
-        val key = _supabaseAnonKey.value
-        return url.isNotEmpty() && url.contains("supabase") && key.isNotEmpty()
-    }
-
-    fun isLoggedIn(): Boolean {
-        return _userId.value.isNotEmpty()
-    }
+    fun isConfigured(): Boolean = true
+    fun isLoggedIn(): Boolean = _userId.value.isNotEmpty()
+    fun updateConfig(u: String, k: String) {}
+    fun setOfflineOnly(o: Boolean) {}
 }
